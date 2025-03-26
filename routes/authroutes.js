@@ -5,7 +5,7 @@ const authController = require("../controllers/authcontroller");
 
 router.use(
     cors({
-      origin: ["https://spark25.onrender.com"],
+      origin: ["https://spark2.netlify.app"],
       methods: ["GET", "POST", "PUT", "DELETE"],
       credentials: true,
     })
