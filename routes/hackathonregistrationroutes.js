@@ -40,39 +40,39 @@ router.post('/register', async (req, res) => {
       return res.status(404).json({ message: 'Hackathon not found.' });
     }
 
-    // Ensure organizerId exists
+    // Ensuring organizerId exists
     if (!hackathon.organizerId) {
       return res.status(400).json({ message: 'Organizer ID is missing in the Hackathon data.' });
     }
-// Ensure studentId is valid before converting to ObjectId
+// Ensuring studentId is valid before converting to ObjectId
 if (!studentId || studentId === 'null') {
   return res.status(400).json({ message: 'Student ID is missing or invalid.' });
 }
   
-    // Check if the user is already registered
+    // Checking if the user is already registered
     const existingRegistration = await RegisteredHackathon.findOne({ hackathonId, studentId });
     if (existingRegistration) {
       return res.status(400).json({ message: 'You have already registered for this hackathon.' });
     }
 
-    // Prepare registration data
+    // registration data
     const registrationData = {
       hackathonId,
       organizerId: hackathon.organizerId,
-      studentId: new mongoose.Types.ObjectId(studentId), // Only if studentId is valid
+      studentId: new mongoose.Types.ObjectId(studentId), 
       isTeam,
-      leaderName: isTeam ? leaderName : name, // Use 'name' for virtual, 'leaderName' for team
-      leaderEmail: isTeam ? leaderEmail : email, // Use 'email' for virtual, 'leaderEmail' for team
+      leaderName: isTeam ? leaderName : name, 
+      leaderEmail: isTeam ? leaderEmail : email, 
       datebirth,
       phone,
       education,
       hasParticipated,
-      teamName: isTeam ? teamName : undefined, // Team name only for team registrations
+      teamName: isTeam ? teamName : undefined, 
     members: isTeam ? members.map((m) => ({
         name: m.name,
         email: m.email,
         dob: m.dob
-    })) : [], // Empty members array for virtual registrations
+    })) : [], 
     registrationDate: new Date()
 };
   
@@ -119,21 +119,35 @@ router.get('/registeredhackathons/:studentId', async (req, res) => {
   }
 });
 
-// Fetch upcoming events hosted by a specific organizer
-router.get("/organizer/:organizerId/upcoming-events", async (req, res) => {
+// Fetch upcoming and conducted events hosted by a specific organizer
+router.get("/organizer/:organizerId/events", async (req, res) => {
   try {
     const { organizerId } = req.params;
+    const { type } = req.query;
+    const today = new Date();
 
-    const upcomingEvents = await Hackathon.find({
-      organizerId
-    });
+    if (!mongoose.Types.ObjectId.isValid(organizerId)) {
+      return res.status(400).json({ message: "Invalid organizer ID format." });
+    }
 
-    res.status(200).json(upcomingEvents);
+    const events = await Hackathon.find({ organizerId: mongoose.Types.ObjectId(organizerId) });
+
+    let filteredEvents = [];
+    if (type === "upcoming") {
+      filteredEvents = events.filter(event => new Date(event.date) >= today);
+    } else if (type === "conducted") {
+      filteredEvents = events.filter(event => new Date(event.date) < today);
+    } else {
+      return res.status(400).json({ message: "Invalid event type specified." });
+    }
+
+    res.status(200).json(filteredEvents);
   } catch (error) {
-    console.error("Error fetching upcoming events:", error);
+    console.error("Error fetching events:", error);
     res.status(500).json({ message: "Server error.", error: error.message });
   }
 });
+
 
 
  //Route for Fetching Registered Students by Hackathon ID
