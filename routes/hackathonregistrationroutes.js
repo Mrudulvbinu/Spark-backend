@@ -119,35 +119,21 @@ router.get('/registeredhackathons/:studentId', async (req, res) => {
   }
 });
 
-// Fetch upcoming and conducted events hosted by a specific organizer
-router.get("/organizer/:organizerId/events", async (req, res) => {
+// Fetch upcoming events hosted by a specific organizer
+router.get("/organizer/:organizerId/upcoming-events", async (req, res) => {
   try {
     const { organizerId } = req.params;
-    const { type } = req.query;
-    const today = new Date();
 
-    if (!mongoose.Types.ObjectId.isValid(organizerId)) {
-      return res.status(400).json({ message: "Invalid organizer ID format." });
-    }
+    const upcomingEvents = await Hackathon.find({
+      organizerId
+    });
 
-    const events = await Hackathon.find({ organizerId: mongoose.Types.ObjectId(organizerId) });
-
-    let filteredEvents = [];
-    if (type === "upcoming") {
-      filteredEvents = events.filter(event => new Date(event.date) >= today);
-    } else if (type === "conducted") {
-      filteredEvents = events.filter(event => new Date(event.date) < today);
-    } else {
-      return res.status(400).json({ message: "Invalid event type specified." });
-    }
-
-    res.status(200).json(filteredEvents);
+    res.status(200).json(upcomingEvents);
   } catch (error) {
-    console.error("Error fetching events:", error);
+    console.error("Error fetching upcoming events:", error);
     res.status(500).json({ message: "Server error.", error: error.message });
   }
 });
-
 
 
  //Route for Fetching Registered Students by Hackathon ID
