@@ -91,17 +91,17 @@ if (!studentId || studentId === 'null') {
 // Fetch all registrations for a specific hackathon
 router.get('/hackathon/:hackathonId', getHackathonRegistrations);
 
+
+
 // Fetch hackathons registered by a specific student
 router.get('/registeredhackathons/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
     const { type } = req.query; // Expect type="upcoming" or "participated"
     const today = new Date();
-
     // Fetch all hackathon registrations for the student
     const registrations = await RegisteredHackathon.find({ studentId })
       .populate('hackathonId');
-
     // Filter based on upcoming or participated events
     let filteredEvents = [];
     if (type === 'upcoming') {
@@ -111,7 +111,6 @@ router.get('/registeredhackathons/:studentId', async (req, res) => {
     } else {
       return res.status(400).json({ message: 'Invalid event type specified.' });
     }
-
       res.status(200).json(filteredEvents);
   } catch (error) {
       console.error('Error fetching events:', error);
@@ -119,21 +118,37 @@ router.get('/registeredhackathons/:studentId', async (req, res) => {
   }
 });
 
+
+
 // Fetch upcoming events hosted by a specific organizer
-router.get("/organizer/:organizerId/upcoming-events", async (req, res) => {
+router.get("/organizer/:organizerId", async (req, res) => {
   try {
     const { organizerId } = req.params;
+    const { type } = req.query;
+    const today = new Date();
 
-    const upcomingEvents = await Hackathon.find({
-      organizerId
-    });
+    const events = await Hackathon.find({ organizerId })
+    .populate('organizerId');
+     // Filter based on upcoming or conducted events
+     let filteredEvent = [];
+     if (type === 'upcomin') {
+       filteredEvent = events.filter(reg => new Date(reg.date) >= today); 
+     } else if (type === 'conducted') {
+       filteredEvent = events.filter(reg => new Date(reg.date) < today);
+     } else {
+       return res.status(400).json({ message: 'Invalid event type specified.' });
+     }
 
-    res.status(200).json(upcomingEvents);
+
+    res.status(200).json(filteredEvent);
   } catch (error) {
     console.error("Error fetching upcoming events:", error);
     res.status(500).json({ message: "Server error.", error: error.message });
   }
 });
+
+
+
 
 
  //Route for Fetching Registered Students by Hackathon ID
