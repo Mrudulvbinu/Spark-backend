@@ -10,6 +10,9 @@ const {
 } = require("../controllers/authcontroller");
 const { getStudentHackathons } = require("../controllers/registrationcontroller");
 
+const studentusers = require("../modules/studentuser");
+const organizerusers = require("../modules/organizerusers");
+
 router.use(
   cors({
     origin: ["https://spark2.netlify.app"],
@@ -18,12 +21,35 @@ router.use(
   })
 );
 
+// Authentication Routes
 router.post("/register/student", registerStudent);
 router.post("/register/organizer", registerOrganizer);
 router.post("/login", login);
 router.post("/admin/login", adminLogin);
 
+// Fetch Registered & Participated Hackathons
 router.get("/registered-events", verifyToken, getStudentHackathons);
 router.get("/participated-events", verifyToken, getStudentHackathons);
+
+//  New Routes: Fetch Student and Organizer Users
+router.get("/students", async (req, res) => {
+  try {
+    const students = await studentusers.find({}, "name username email");
+    res.json(students);
+  } catch (error) {
+    console.error("Error fetching students:", error);
+    res.status(500).json({ error: "Failed to fetch students" });
+  }
+});
+
+router.get("/organizers", async (req, res) => {
+  try {
+    const organizers = await organizerusers.find({}, "name username email");
+    res.json(organizers);
+  } catch (error) {
+    console.error("Error fetching organizers:", error);
+    res.status(500).json({ error: "Failed to fetch organizers" });
+  }
+});
 
 module.exports = router;
