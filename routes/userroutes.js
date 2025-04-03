@@ -1,15 +1,11 @@
+// backend/routes/userroutes.js
 const express = require("express");
 const cors = require("cors");
 const router = express.Router();
 const verifyToken = require("../middleware/authmiddleware");
-const {
-  registerStudent,
-  registerOrganizer,
-  login,
-  adminLogin,
-} = require("../controllers/authcontroller");
+const { registerStudent, registerOrganizer, login, adminLogin } = require("../controllers/authcontroller");
 const { getStudentHackathons } = require("../controllers/registrationcontroller");
-
+const { getUserCounts, getEventCounts, getAllHackathons } = require("../controllers/admincontroller");
 const studentusers = require("../modules/studentuser");
 const organizerusers = require("../modules/organizerusers");
 
@@ -31,7 +27,12 @@ router.post("/admin/login", adminLogin);
 router.get("/registered-events", verifyToken, getStudentHackathons);
 router.get("/participated-events", verifyToken, getStudentHackathons);
 
-//  New Routes: Fetch Student and Organizer Users
+// Admin routes
+router.get("/user-counts", verifyToken, getUserCounts);
+router.get("/event-counts", verifyToken, getEventCounts);
+router.get("/hackathons", verifyToken, getAllHackathons);
+
+// Existing routes for fetching students and organizers
 router.get("/students", async (req, res) => {
   try {
     const students = await studentusers.find({}, "name username email");
