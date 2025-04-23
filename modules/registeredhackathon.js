@@ -16,15 +16,27 @@ const RegisteredHackathonSchema = new mongoose.Schema({
         ref: 'OrganizerUser',
         required: true
     },
+    // For team registrations
     leaderName: {
         type: String,
-        required: true
+        required: function() { return this.isTeam; }
+    },
+    // For team registrations
+    leaderEmail: {
+        type: String,
+        required: function() { return this.isTeam; }
+    },
+    // For solo registrations
+    name: {
+        type: String,
+        required: function() { return !this.isTeam; }
+    },
+    // For solo registrations
+    email: {
+        type: String,
+        required: function() { return !this.isTeam; }
     },
     datebirth: {
-        type: String,
-        required: true
-    },
-    leaderEmail: {
         type: String,
         required: true
     },
@@ -43,7 +55,7 @@ const RegisteredHackathonSchema = new mongoose.Schema({
     },
     teamName: {
         type: String,
-        required: function() { return this.isTeam; } // Only required if isTeam is true
+        required: function() { return this.isTeam; }
     },
     isTeam: {
         type: Boolean,
@@ -56,7 +68,12 @@ const RegisteredHackathonSchema = new mongoose.Schema({
     registrationDate: {
         type: Date,
         default: Date.now
-    }
+    },
+    proposal: {
+        url: String,
+        publicId: String,   
+        originalName: String,
+    },
 });
 
 module.exports = mongoose.model('RegisteredHackathon', RegisteredHackathonSchema);

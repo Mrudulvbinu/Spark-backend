@@ -1,28 +1,42 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const { cloudinary, storage } = require('../cloudinaryConfig');
+const upload = multer({ storage });
 const Hackathon = require('../modules/hackathon');
 const RegisteredHackathon = require('../modules/registeredhackathon');
 const mongoose = require("mongoose");
-
-const {
-  getHackathonRegistrations,
-} = require('../controllers/registrationcontroller');
-
+const { getHackathonRegistrations } = require('../controllers/registrationcontroller');
 
 // Unified Registration Endpoint for Solo and Team Hackathons
-router.post('/register', async (req, res) => {
+router.post('/register', upload.single('file'), async (req, res) => {
   try {
-    console.log("Incoming Registration Data:", req.body);
+    console.log("Request Body:", req.body);
+    console.log("Uploaded File:", req.file);
 
+    // Validate PDF file
+    if (req.file && req.file.mimetype !== 'application/pdf') {
+      if (req.file) {
+        await cloudinary.uploader.destroy(req.file.filename, {
+          resource_type: 'raw'
+        });
+      }
+      return res.status(400).json({ 
+        success: false,
+        message: 'Only PDF files are allowed' 
+      });
+    }
+
+    // Parse form data
     const {
       hackathonId,
       studentId,
       isTeam,
-      leaderName,
+      name, // For solo registration
+      leaderName, // For team registration
       datebirth,
-      leaderEmail,
-      name,
-      email,
+      email, // For solo registration
+      leaderEmail, // For team registration
       phone,
       education,
       hasParticipated,
@@ -30,68 +44,169 @@ router.post('/register', async (req, res) => {
       members
     } = req.body;
 
-    if (!hackathonId) {
-      return res.status(400).json({ message: 'Hackathon ID is required.' });
+    // Validate required fields
+    if (!hackathonId || !studentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields'
+      });
     }
 
-    //  Fetch Hackathon to get organizerId
+    // Determine if this is a team or solo registration
+    const isTeamRegistration = isTeam === 'true';
+    
+    // Parse members from JSON string (only for team registration)
+    let parsedMembers = [];
+    if (isTeamRegistration) {
+      try {
+        parsedMembers = JSON.parse(members || '[]');
+      } catch (e) {
+        console.error("Error parsing members:", e);
+        parsedMembers = [];
+      }
+    }
+
+    // Check if hackathon exists
     const hackathon = await Hackathon.findById(hackathonId);
     if (!hackathon) {
-      return res.status(404).json({ message: 'Hackathon not found.' });
+      return res.status(404).json({
+        success: false,
+        message: 'Hackathon not found'
+      });
     }
 
-    // Ensuring organizerId exists
     if (!hackathon.organizerId) {
-      return res.status(400).json({ message: 'Organizer ID is missing in the Hackathon data.' });
-    }
-// Ensuring studentId is valid before converting to ObjectId
-if (!studentId || studentId === 'null') {
-  return res.status(400).json({ message: 'Student ID is missing or invalid.' });
-}
-  
-    // Checking if the user is already registered
-    const existingRegistration = await RegisteredHackathon.findOne({ hackathonId, studentId });
-    if (existingRegistration) {
-      return res.status(400).json({ message: 'You have already registered for this hackathon.' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Organizer ID is missing in the Hackathon data.' 
+      });
     }
 
-    // registration data
+    if (!studentId || studentId === 'null') {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Student ID is missing or invalid.' 
+      });
+    }
+  
+    // Check for existing registration
+    const existingRegistration = await RegisteredHackathon.findOne({ 
+      hackathonId, 
+      studentId 
+    });
+    if (existingRegistration) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already registered for this hackathon.'
+      });
+    }
+
+    // Prepare registration data based on registration type
     const registrationData = {
       hackathonId,
       organizerId: hackathon.organizerId,
-      studentId: new mongoose.Types.ObjectId(studentId), 
-      isTeam,
-      leaderName: isTeam ? leaderName : name, 
-      leaderEmail: isTeam ? leaderEmail : email, 
+      studentId: new mongoose.Types.ObjectId(studentId),
+      isTeam: isTeamRegistration,
       datebirth,
       phone,
       education,
       hasParticipated,
-      teamName: isTeam ? teamName : undefined, 
-    members: isTeam ? members.map((m) => ({
-        name: m.name,
-        email: m.email,
-        dob: m.dob
-    })) : [], 
-    registrationDate: new Date()
-};
-  
+      registrationDate: new Date()
+    };
 
-    // Save registration to the database
-    const newRegistration = new RegisteredHackathon(registrationData);
-    await newRegistration.save();
+    // Set name and email based on registration type
+    if (isTeamRegistration) {
+      registrationData.leaderName = leaderName;
+      registrationData.leaderEmail = leaderEmail;
+      registrationData.teamName = teamName;
+      registrationData.members = parsedMembers;
+    } else {
+      registrationData.name = name;
+      registrationData.email = email;
+      registrationData.members = []; // Empty array for solo registration
+    }
 
-    return res.status(201).json({ message: 'Registration successful!' });
+    // Handle file upload
+    if (req.file) {
+      // Generate thumbnail URL
+      const thumbnailUrl = cloudinary.url(req.file.filename, {
+        resource_type: 'image',
+        format: 'jpg',
+        page: 1, // First page of PDF
+        width: 300,
+        crop: 'scale'
+      });
+
+      registrationData.proposal = {
+        url: req.file.path,
+        publicId: req.file.filename,
+        originalName: req.file.originalname,
+        thumbnailUrl: thumbnailUrl
+      };
+    }
+
+    console.log("Final registration data:", registrationData);
+
+    // Save registration
+    const newRegistration = await RegisteredHackathon.create(registrationData);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Registration successful',
+      registration: newRegistration
+    });
+
   } catch (error) {
-    console.error("Server Error Details:", error);
-    res.status(500).json({ message: 'Server error.', error: error.message });
+    console.error("Registration Error:", error);
+    
+    // Clean up uploaded file if error occurred
+    if (req.file) {
+      try {
+        await cloudinary.uploader.destroy(req.file.filename, {
+          resource_type: 'raw'
+        });
+      } catch (cleanupError) {
+        console.error("File cleanup failed:", cleanupError);
+      }
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Registration failed',
+      error: error.message
+    });
+  }
+});
+
+// [Keep all your other existing routes exactly as they were]
+// Add this temporary route to debug Cloudinary uploads
+router.post('/test-upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    return res.json({
+      success: true,
+      file: {
+        path: req.file.path,
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+        size: req.file.size
+      }
+    });
+  } catch (error) {
+    console.error('Upload test error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Upload failed',
+      error: error.message 
+    });
   }
 });
 
 // Fetch all registrations for a specific hackathon
 router.get('/hackathon/:hackathonId', getHackathonRegistrations);
-
-
 
 // Fetch hackathons registered by a specific student
 router.get('/registeredhackathons/:studentId', async (req, res) => {
@@ -118,8 +233,6 @@ router.get('/registeredhackathons/:studentId', async (req, res) => {
   }
 });
 
-
-
 // Fetch upcoming events hosted by a specific organizer
 router.get("/organizer/:organizerId", async (req, res) => {
   try {
@@ -139,7 +252,6 @@ router.get("/organizer/:organizerId", async (req, res) => {
        return res.status(400).json({ message: 'Invalid event type specified.' });
      }
 
-
     res.status(200).json(filteredEvent);
   } catch (error) {
     console.error("Error fetching upcoming events:", error);
@@ -147,11 +259,7 @@ router.get("/organizer/:organizerId", async (req, res) => {
   }
 });
 
-
-
-
-
- //Route for Fetching Registered Students by Hackathon ID
+// Route for Fetching Registered Students by Hackathon ID
 router.get("/registeredhackathon/hackathon/:hackathonId", async (req, res) => {
   try {
     const { hackathonId } = req.params;
@@ -173,7 +281,6 @@ router.get("/registeredhackathon/hackathon/:hackathonId", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
 
 router.get('/check/:hackathonId', async (req, res) => {
   try {
