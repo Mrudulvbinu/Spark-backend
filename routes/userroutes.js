@@ -45,7 +45,7 @@ router.get("/students", async (req, res) => {
 
 router.get("/organizers", async (req, res) => {
   try {
-    const organizers = await organizerusers.find({}, "name username email");
+    const organizers = await organizerusers.find({}, "name username email ");
     res.json(organizers);
   } catch (error) {
     console.error("Error fetching organizers:", error);

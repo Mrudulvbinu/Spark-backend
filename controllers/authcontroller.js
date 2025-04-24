@@ -93,7 +93,7 @@ const registerStudent = async (req, res) => {
 // ================== REGISTER ORGANIZER ==================
 const registerOrganizer = async (req, res) => {
   try {
-    const { name, email, username, password, address, certificate } = req.body;
+    const { name, email, username, password, address, userType } = req.body;
 
     // Validate input
     const validationErrors = validateRegistrationInput(req.body, true);
@@ -127,7 +127,6 @@ const registerOrganizer = async (req, res) => {
       username, 
       password: hashedPassword, 
       address,
-      certificate: certificate || null,
       userType: "organizer" 
     });
 
@@ -137,7 +136,7 @@ const registerOrganizer = async (req, res) => {
     const token = jwt.sign(
       { id: newUser._id, userType: "organizer" },
       JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "24h" }
     );
 
     res.status(201).json({ 
@@ -147,6 +146,7 @@ const registerOrganizer = async (req, res) => {
         userId: newUser._id,
         name: newUser.name,
         email: newUser.email,
+        address: newUser.address,
         userType: "organizer",
         token
       }
