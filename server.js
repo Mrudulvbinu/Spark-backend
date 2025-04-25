@@ -43,6 +43,9 @@ app.use("/api/hackathons", hackathonroutes);
 const registeredhackathonRoutes = require("./routes/hackathonregistrationroutes");
 app.use("/api/registeredhackathon", registeredhackathonRoutes);
 
+const proposalsRouter = require('./routes/proposals');
+app.use('/api/proposals', proposalsRouter);
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

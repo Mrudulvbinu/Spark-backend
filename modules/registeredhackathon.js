@@ -74,6 +74,11 @@ const RegisteredHackathonSchema = new mongoose.Schema({
         publicId: String,   
         originalName: String,
     },
+    status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending'
+      }    
 });
 
 module.exports = mongoose.model('RegisteredHackathon', RegisteredHackathonSchema);
