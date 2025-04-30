@@ -16,6 +16,11 @@ const RegisteredHackathonSchema = new mongoose.Schema({
         ref: 'OrganizerUser',
         required: true
     },
+    orgname: {
+        type: String,
+        required: true
+    },
+
     // For team registrations
     leaderName: {
         type: String,

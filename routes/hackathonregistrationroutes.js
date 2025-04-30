@@ -31,6 +31,7 @@ router.post('/register', upload.single('file'), async (req, res) => {
     const {
       hackathonId,
       studentId,
+      orgname,
       isTeam,
       name, // For solo registration
       leaderName, // For team registration
@@ -107,6 +108,7 @@ router.post('/register', upload.single('file'), async (req, res) => {
       organizerId: hackathon.organizerId,
       studentId: new mongoose.Types.ObjectId(studentId),
       isTeam: isTeamRegistration,
+      orgname:hackathon.orgname,
       datebirth,
       phone,
       education,
@@ -178,8 +180,7 @@ router.post('/register', upload.single('file'), async (req, res) => {
   }
 });
 
-// [Keep all your other existing routes exactly as they were]
-// Add this temporary route to debug Cloudinary uploads
+
 router.post('/test-upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -213,23 +214,41 @@ router.get('/registeredhackathons/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
     const { type } = req.query; // Expect type="upcoming" or "participated"
-    const today = new Date();
     // Fetch all hackathon registrations for the student
     const registrations = await RegisteredHackathon.find({ studentId })
-      .populate('hackathonId');
+      .populate('hackathonId')
+      .exec();
+
+          // Filter out any registrations with null hackathon
+    const validRegistrations = registrations.filter(reg => reg.hackathonId !== null);
+
     // Filter based on upcoming or participated events
     let filteredEvents = [];
+    const currentDate = new Date();
+
     if (type === 'upcoming') {
-      filteredEvents = registrations.filter(reg => new Date(reg.hackathonId.date) >= today);
+      filteredEvents = validRegistrations.filter(reg => {
+        return reg.hackathonId && 
+               reg.hackathonId.date && 
+               new Date(reg.hackathonId.date) > currentDate;
+      });
     } else if (type === 'participated') {
-      filteredEvents = registrations.filter(reg => new Date(reg.hackathonId.date) < today);
+      filteredEvents = validRegistrations.filter(reg => {
+        return reg.hackathonId && 
+               reg.hackathonId.date && 
+               new Date(reg.hackathonId.date) <= currentDate;
+      });
     } else {
-      return res.status(400).json({ message: 'Invalid event type specified.' });
+      filteredEvents = validRegistrations;
     }
-      res.status(200).json(filteredEvents);
+
+    res.status(200).json(filteredEvents);
   } catch (error) {
-      console.error('Error fetching events:', error);
-      res.status(500).json({ message: 'Server error.', error: error.message });
+    console.error("Error fetching registered hackathons:", error);
+    res.status(500).json({ 
+      message: "Server error.", 
+      error: error.message 
+    });
   }
 });
 

@@ -8,7 +8,7 @@ const Hackathon = require("../modules/hackathon");
 const RegisteredHackathon = require("../modules/registeredhackathon");
 const mongoose = require("mongoose");
 const verifyToken = require("../middleware/authmiddleware");
-
+const OrganizerUser = require("../modules/organizerusers");
 
 router.use(
   cors({
@@ -40,14 +40,21 @@ router.post("/add", verifyToken, async (req, res) => {
     }
 
     const organizerId = req.user.id;
+    
+    // Fetch the organizer's details from OrganizerUser model
+    const organizer = await OrganizerUser.findById(organizerId);
+    if (!organizer) {
+      return res.status(404).json({ message: "Organizer not found." });
+    }
 
-    const { typeofhk, ename, venue, date, regstart, regend, details, durofhk, prize, isTeamHackathon} = req.body;
+    const { typeofhk, ename, venue, date, regstart, regend, details, durofhk, prize, isTeamHackathon } = req.body;
     if (!typeofhk || !ename || !venue || !date || !regstart || !regend || !details || !durofhk || !prize) {
       return res.status(400).json({ message: "All fields are required." });
     }
 
     const newHackathon = new Hackathon({
       organizerId: new mongoose.Types.ObjectId(organizerId),
+      orgname: organizer.name, // Set the organizer's name here
       typeofhk,
       ename,
       venue,
@@ -195,5 +202,18 @@ doc.end();
   }
 });
 
+
+router.get("/:id", async (req, res) => {
+  try {
+    const hackathon = await Hackathon.findById(req.params.id);
+    if (!hackathon) {
+      return res.status(404).json({ message: "Hackathon not found" });
+    }
+    res.status(200).json(hackathon);
+  } catch (error) {
+    console.error("Error fetching hackathon:", error);
+    res.status(500).json({ message: "Failed to fetch hackathon", error: error.message });
+  }
+});
 
 module.exports = router;

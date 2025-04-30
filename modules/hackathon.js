@@ -2,6 +2,7 @@
 
     const HackathonSchema = new mongoose.Schema({
         organizerId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'OrganizerUser' },
+        orgname:{ type: String, required: true},
         typeofhk: { type: String, required: true, enum: ['Team Hackathon (offline)', 'Virtual Solo Hackathon (online)'] },
         ename: { type: String, required: true },
         venue: { type: String, required: true },

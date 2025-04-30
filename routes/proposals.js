@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
     console.log(`Fetching proposals for organizer: ${organizerId}`);
 
     const proposals = await RegisteredHackathon.find({ organizerId })
-      .populate('hackathonId', 'name')
+      .populate('hackathonId', 'ename')
       .sort({ registrationDate: -1 });
     
     console.log('Proposals found:', proposals.length);
